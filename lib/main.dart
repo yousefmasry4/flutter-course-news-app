@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:untitled1/single_new.dart';
 
 import 'dart_http.dart';
 
@@ -54,18 +55,34 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   Articles? artical;
+  bool error = false;
 
   Future api() async {
-    var res = await http.get(Uri.parse(
-        "https://newsapi.org/v2/everything?q=tesla&from=2022-08-21&sortBy=publishedAt&apiKey=0c341da764424524812d2ecfddaf67bc"));
-    setState(() {
-      artical = Articles.fromJson(json.decode(res.body));
-    });
+    try {
+      var res = await http.get(Uri.parse(
+          "https://newsapi.org/v2/everything?q=tesla&from=2022-09-22&sortBy=publishedAt&apiKey=0c341da764424524812d2ecfddaf67bc"));
+      if(res.statusCode != 200){
+        throw Exception();
+      }
+      setState(() {
+        artical = Articles.fromJson(json.decode(res.body));
+      });
+    } on Exception catch (e) {
+      setState(() {
+        error= true;
+      });
+    }
   }
-
+final ScrollController scrollController =ScrollController();
+  bool showFAB=false;
   @override
   void initState() {
     api();
+    scrollController.addListener(() {
+      setState(() {
+        showFAB=scrollController.offset>300?true:false;
+      });
+    });
     super.initState();
   }
 
@@ -78,7 +95,6 @@ class _MyHomePageState extends State<MyHomePage> {
       // called again, and so nothing would appear to happen.
     });
   }
-
   @override
   Widget build(BuildContext context) {
     // This method is rerun every time setState is called, for instance as done
@@ -88,34 +104,69 @@ class _MyHomePageState extends State<MyHomePage> {
     // fast, so that you can just rebuild anything that needs updating rather
     // than having to individually change instances of widgets.
     return Scaffold(
-        body: artical == null
-            ? Center(child: CircularProgressIndicator())
-            : ListView(
-                children: [
-                  ...artical!.articles.map((e) => Card(
-                        child: Column(
-                          children: [
-                            ///img
-                            Container(
-                              height: 200.0,
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                image: DecorationImage(
-                                    image: NetworkImage(e.urlToImage ??
-                                        "https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.apple.com%2Feg%2F&psig=AOvVaw2OQXfl2oZpZy_iojdynrr0&ust=1663848043767000&source=images&cd=vfe&ved=2ahUKEwimjZKO66X6AhUDhLAFHV3AA50QjRx6BAgAEAs"),
-                                    fit: BoxFit.cover),
-                                borderRadius: BorderRadius.circular(12.0),
-                              ),
-                            ),
-                            Text(
-                              e.title
-                            )
+      appBar: AppBar(
+        title: Text("News App"),
+      ),
+        body:error== true?
 
-                            ///title
-                          ],
+            Center(
+              child:Text("Error")
+            ): artical == null
+            ? const Center(child: CircularProgressIndicator())
+            : ListView(
+          controller: scrollController,
+                children: [
+                  ...artical!.articles.map((e) => InkWell(
+                    onTap: (){
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => SingleNew(
+                                e: e,
+                              )));
+
+                    },
+                    child: Card(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              ///img
+                              Container(
+                                height: 200.0,
+                                width: double.infinity,
+                                margin: EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  image: DecorationImage(
+                                      image: NetworkImage(e.urlToImage ??
+                                          "https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.apple.com%2Feg%2F&psig=AOvVaw2OQXfl2oZpZy_iojdynrr0&ust=1663848043767000&source=images&cd=vfe&ved=2ahUKEwimjZKO66X6AhUDhLAFHV3AA50QjRx6BAgAEAs"),
+                                      fit: BoxFit.cover),
+                                  borderRadius: BorderRadius.circular(12.0),
+                                ),
+                              ),
+                              Padding(padding: EdgeInsets.all(10),child: Text(
+                                  e.title,
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w500
+                                  ),
+                              ),)
+
+
+                              ///title
+                            ],
+                          ),
                         ),
-                      ))
+                  ))
                 ],
-              ));
+              ),
+      floatingActionButton: showFAB?FloatingActionButton(
+          child: Icon(
+            Icons.keyboard_arrow_up_sharp,
+            size: 30,
+          ),
+          onPressed: (){
+        scrollController.animateTo(0.0, duration: Duration(seconds: 1), curve: Curves.ease);
+      }):null,
+    );
   }
 }
